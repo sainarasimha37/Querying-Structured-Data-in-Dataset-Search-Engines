@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SQL Query Tool</title>
+  <style>
+    /* Your styles... */
+    .navbar {
+  background-color: #57068c; /* NYU purple */
+  height: 80px;
+  display: flex;
+  justify-content: flex-start; /* Changed from 'space-between' */
+  align-items: center;
+  padding: 0 20px;
+}
+
+.navbar-logo {
+  height: 60px;
+}
+
+.navbar-links {
+  list-style-type: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar-links li {
+  margin: 0 10px;
+}
+
+.navbar-links a {
+  color: white;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.navbar-links a:hover {
+  color: #ffbd00; /* NYU gold */
+}
+
+
+    #jsonTable {
+      border-collapse: collapse;
+    }
+
+    #jsonTable th,
+    #jsonTable td {
+      border: 1px solid black;
+      padding: 5px;
+    }
+
+    .execute-query-btn {
+      background-color: #57068C; /* Green */
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+    }
+    #jsonTable {
+      font-family: Arial, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    }
+
+    #jsonTable th, #jsonTable td {
+      text-align: left;
+      padding: 12px;
+      border: 1px solid #ddd;
+    }
+
+    #jsonTable th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    #jsonTable tbody tr:nth-child(even) {
+      background-color: #f8f8f8;
+    }
+
+    #jsonTable tbody tr:hover {
+      background-color: #ddd;
+    }
+    /* NYU purple color code */
+    :root {
+      --nyu-purple: #57068c;
+    }
+
+    /* CSS for the label */
+    label {
+      display: inline-block;
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--nyu-purple);
+      margin-bottom: 0.5rem;
+    }
+
+    /* CSS for the input field */
+    input[type="text"], textarea {
+      font-size: 1rem;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      border: 2px solid var(--nyu-purple);
+      outline: none;
+      transition: border-color 0.2s ease-in-out;
+    }
+
+    /* CSS for the input field on focus */
+    input[type="text"]:focus, textarea:focus {
+      border-color: #c1a5c1;
+    }
+
+    /* CSS for the div container */
+    div {
+      margin-bottom: 1rem;
+    }
+
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 1; 
+      padding-top: 100px; 
+      left: 0;
+      top: 0;
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.4); 
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+    }
+    .close {
+      color: #aaaaaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .close:hover,
+    .close:focus {
+      color: #000;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+<body>
+<div class="navbar">
+  <img class="navbar-logo" src="https://gitlab.com/uploads/-/system/group/avatar/3730311/auctus-logo.png" alt="NYU logo">
+  <ul class="navbar-links">
+    <li><a href="#">   Home</a></li>
+    <li><a href="#" onclick="downloadTableData()">Download as CSV</a></li>
+    <li><a href="#" id="helpBtn">Help</a></li>
+  </ul>
+</div>
+<h1>SQL Query Tool</h1>
+<div>
+    <label for="object_name">Data Set ID:</label>
+    <input type="text" id="object_name" name="object_name" placeholder="Paste ID of the dataset"><br><br>
+    <label for="query">Query:</label>
+    <textarea id="query" name="query" rows="10" cols="80" style="resize: none;" placeholder="SELECT * FROM data LIMIT 20"></textarea>
+</div>
+<button type="button" onclick="executeQuery()" class="execute-query-btn">Execute query</button>
+
+<div>
+  <table id="jsonTable">
+  </table>
+</div>
+
+<!-- The Modal -->
+<div id="myModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <p>Here is some helpful information...</p>
+    <p>To obtain the dataset ID from Auctus, navigate to the page where the "Execute Query" button is located. Next to the button, there should be an option to "Copy ID". Once you have copied the ID, simply paste it into the designated text box for the dataset ID.</p>
+    <p>Give query as "SELECT * FROM data LIMIT 10"</p>
+    <p>It is possible to modify the limit and select columns, while maintaining the table name as "data". The dataset is being manipulated in the backend, but for ease of use for the user, we have chosen to temporarily name the table "data".</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+<script>
+  var jsonData = null;
+  function executeQuery() {
+   var object_name = document.getElementById('object_name').value;
+   var query = document.getElementById('query').value;
+
+   fetch('/query?object_name=' + encodeURIComponent(object_name) + '&query=' + encodeURIComponent(query))
+   .then(response => response.json())
+   .then(jsonData => {
+     // Get the reference for the table
+     var table = document.getElementById("jsonTable");
+    //  table.style.display = "table";
+
+     // Remove any existing rows in the table
+     while (table.firstChild) {
+       table.firstChild.remove();
+     }
+
+     // Insert new rows into the table
+     for (var i = 0; i < jsonData.results.data.length; i++) {
+       // Insert a row at the end of the table
+       var newRow = table.insertRow(-1);
+
+       // Insert a cell for each field in the data
+       var data = jsonData.results.data[i];
+      for (var field of jsonData.results.schema.fields) {
+        var newCell = newRow.insertCell(-1);
+        newCell.innerHTML = data[field.name];
+      }
+     }
+     table.style.display = "table";
+   });
+}
+function downloadTableData() {
+  var object_name = document.getElementById('object_name').value;
+  var query = document.getElementById('query').value;
+  fetch('/query?object_name=' + encodeURIComponent(object_name) + '&query=' + encodeURIComponent(query))
+   .then(response => response.json())
+   .then(jsonData => {
+    var csv = Papa.unparse({data:jsonData.results.data});
+    var blob = new Blob([csv], {type: "text/csv;charset=utf-8"});
+    saveAs(blob, "data.csv");
+   });
+    
+}
+
+// Modal script
+ var modal = document.getElementById("myModal");
+ var btn = document.getElementById("helpBtn");
+ var span = document.getElementsByClassName("close")[0];
+ btn.onclick = function() {
+   modal.style.display = "block";
+ }
+ span.onclick = function() {
+   modal.style.display = "none";
+ }
+ window.onclick = function(event) {
+   if (event.target == modal) {
+     modal.style.display = "none";
+   }
+ }
+
+</script>
+</body>
+</html>
+
